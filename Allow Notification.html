@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Allow Notifications</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family:
+      -apple-system,
+      BlinkMacSystemFont,
+      "SF Pro Display",
+      "SF Pro Text",
+      "Inter",
+      "Segoe UI",
+      Arial,
+      sans-serif;
+  }
+
+  body {
+    background:
+      radial-gradient(
+        circle at 50% 43%,
+        rgba(255,255,255,1) 0%,
+        rgba(250,250,250,0.98) 32%,
+        rgba(245,246,247,1) 72%,
+        rgba(240,241,242,1) 100%
+      );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #151515;
+  }
+
+  /* Subtle premium background */
+  .background {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .background::before {
+    content: "";
+    position: absolute;
+    width: 680px;
+    height: 680px;
+    left: 50%;
+    top: 42%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: rgba(255,255,255,.78);
+    filter: blur(70px);
+    animation: ambient 7s ease-in-out infinite;
+  }
+
+  .grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 330px;
+    opacity: .34;
+    background-image:
+      linear-gradient(rgba(170,175,180,.16) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(170,175,180,.16) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      rgba(0,0,0,.85)
+    );
+  }
+
+  /* Main modal */
+  .modal-wrap {
+    position: relative;
+    width: min(568px, calc(100vw - 32px));
+    padding: 10px;
+    border-radius: 44px;
+    background: rgba(255,255,255,.24);
+    border: 1px solid rgba(255,255,255,.9);
+    box-shadow:
+      0 30px 80px rgba(40,45,50,.12),
+      0 8px 24px rgba(40,45,50,.07),
+      inset 0 1px 0 rgba(255,255,255,.9);
+    animation:
+      modalIn 900ms cubic-bezier(.16,1,.3,1) both,
+      modalFloat 6s ease-in-out 1s infinite;
+    backdrop-filter: blur(18px);
+  }
+
+  .modal {
+    position: relative;
+    min-height: 494px;
+    border-radius: 34px;
+    overflow: hidden;
+    background:
+      radial-gradient(
+        circle at 50% 25%,
+        rgba(255,255,255,.98),
+        rgba(252,252,252,.96) 58%,
+        rgba(248,248,248,.98)
+      );
+    border: 1px solid rgba(255,255,255,.95);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,1),
+      inset 0 -1px 0 rgba(220,220,220,.25);
+  }
+
+  /* Fine halftone texture */
+  .modal::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: .11;
+    pointer-events: none;
+    background-image: radial-gradient(
+      rgba(80,80,80,.5) .7px,
+      transparent .7px
+    );
+    background-size: 5px 5px;
+    mask-image: radial-gradient(
+      ellipse at center top,
+      black 0%,
+      transparent 63%
+    );
+  }
+
+  /* Close button */
+  .close {
+    position: absolute;
+    z-index: 5;
+    top: 30px;
+    right: 32px;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+    opacity: 0;
+    animation: fadeIn 500ms ease 650ms forwards;
+  }
+
+  .close::before,
+  .close::after {
+    content: "";
+    position: absolute;
+    left: 14px;
+    top: 2px;
+    width: 2px;
+    height: 27px;
+    background: #151515;
+    border-radius: 2px;
+  }
+
+  .close::before {
+    transform: rotate(45deg);
+  }
+
+  .close::after {
+    transform: rotate(-45deg);
+  }
+
+  .close:hover {
+    transform: scale(1.08);
+  }
+
+  /* Content */
+  .content {
+    position: relative;
+    z-index: 2;
+    padding-top: 39px;
+    text-align: center;
+  }
+
+  /* Bell */
+  .bell-stage {
+    width: 148px;
+    height: 148px;
+    margin: 0 auto 30px;
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background:
+      radial-gradient(
+        circle at 36% 27%,
+        #fffdf7 0%,
+        #f4efe3 50%,
+        #e9e4d9 100%
+      );
+
+    border: 1px solid rgba(255,255,255,.95);
+
+    box-shadow:
+      0 14px 32px rgba(80,72,55,.10),
+      inset 0 2px 4px rgba(255,255,255,.9),
+      inset 0 -2px 8px rgba(130,120,100,.08);
+
+    animation:
+      iconIn 850ms cubic-bezier(.16,1,.3,1) 180ms both,
+      bellFloat 4.5s ease-in-out 1.2s infinite;
+  }
+
+  .bell-stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: .22;
+    background-image:
+      radial-gradient(
+        rgba(120,110,90,.55) .55px,
+        transparent .55px
+      );
+    background-size: 4px 4px;
+    mix-blend-mode: multiply;
+  }
+
+  .bell {
+    position: relative;
+    width: 78px;
+    height: 88px;
+    filter:
+      drop-shadow(0 7px 5px rgba(94,67,20,.23))
+      drop-shadow(0 1px 1px rgba(255,255,255,.7));
+    transform-origin: 50% 18%;
+  }
+
+  .bell-body {
+    position: absolute;
+    left: 10px;
+    top: 19px;
+    width: 58px;
+    height: 60px;
+    border-radius: 30px 30px 8px 8px;
+    background:
+      linear-gradient(
+        90deg,
+        #9d681d 0%,
+        #d99b35 15%,
+        #ffc957 42%,
+        #e5a53d 68%,
+        #9b641c 100%
+      );
+    box-shadow:
+      inset 7px 0 8px rgba(255,255,255,.28),
+      inset -7px 0 8px rgba(92,54,8,.22);
+  }
+
+  .bell-body::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 4px;
+    width: 18px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,236,177,.35);
+    filter: blur(5px);
+  }
+
+  .bell-rim {
+    position: absolute;
+    left: 5px;
+    bottom: 9px;
+    width: 68px;
+    height: 18px;
+    border-radius: 50%;
+    background:
+      linear-gradient(
+        180deg,
+        #d08e2b,
+        #f5bc4b 45%,
+        #9a621b
+      );
+    box-shadow:
+      inset 0 3px 3px rgba(255,225,150,.4),
+      0 3px 4px rgba(85,55,13,.18);
+  }
+
+  .bell-rim::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 3px;
+    width: 52px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(101,62,12,.28);
+  }
+
+  .clapper {
+    position: absolute;
+    left: 30px;
+    bottom: -2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background:
+      radial-gradient(
+        circle at 35% 30%,
+        #ffd36d,
+        #c78322 72%
+      );
+    box-shadow: 0 4px 4px rgba(80,55,15,.25);
+  }
+
+  .loop {
+    position: absolute;
+    left: 30px;
+    top: 2px;
+    width: 19px;
+    height: 22px;
+    border: 6px solid #c58629;
+    border-bottom: 0;
+    border-radius: 14px 14px 0 0;
+    filter: drop-shadow(0 1px 1px rgba(80,50,10,.2));
+  }
+
+  /* Text */
+  h1 {
+    margin: 0;
+    font-size: 36px;
+    line-height: 1.12;
+    letter-spacing: -1.35px;
+    font-weight: 720;
+    color: #171717;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: textIn 650ms cubic-bezier(.16,1,.3,1) 430ms forwards;
+  }
+
+  .subtitle {
+    max-width: 455px;
+    margin: 12px auto 0;
+    padding: 0 18px;
+    font-size: 18px;
+    line-height: 1.32;
+    letter-spacing: -.25px;
+    font-weight: 430;
+    color: #626262;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: textIn 650ms cubic-bezier(.16,1,.3,1) 520ms forwards;
+  }
+
+  /* Bottom action area */
+  .actions {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 120px;
+    padding: 29px 30px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: rgba(250,250,250,.58);
+    border-top: 1px solid rgba(205,205,205,.65);
+    opacity: 0;
+    transform: translateY(15px);
+    animation: actionsIn 700ms cubic-bezier(.16,1,.3,1) 650ms forwards;
+    backdrop-filter: blur(14px);
+  }
+
+  button.action {
+    flex: 1;
+    height: 61px;
+    border-radius: 18px;
+    font-family: inherit;
+    font-size: 20px;
+    font-weight: 650;
+    letter-spacing: -.25px;
+    cursor: pointer;
+    transition:
+      transform 180ms cubic-bezier(.16,1,.3,1),
+      box-shadow 180ms ease,
+      background 180ms ease;
+  }
+
+  .later {
+    color: #252525;
+    background: #fff;
+    border: 1px solid #d5d5d5;
+    box-shadow:
+      0 2px 3px rgba(0,0,0,.04),
+      inset 0 1px 0 rgba(255,255,255,1);
+  }
+
+  .allow {
+    color: white;
+    background:
+      linear-gradient(
+        180deg,
+        #3472ed 0%,
+        #2864dd 100%
+      );
+    border: 1px solid #1f5bd1;
+    box-shadow:
+      0 5px 12px rgba(39,101,222,.22),
+      inset 0 1px 0 rgba(255,255,255,.18);
+  }
+
+  button.action:hover {
+    transform: translateY(-2px);
+  }
+
+  .later:hover {
+    box-shadow:
+      0 7px 15px rgba(0,0,0,.08),
+      inset 0 1px 0 white;
+  }
+
+  .allow:hover {
+    box-shadow:
+      0 9px 20px rgba(39,101,222,.30),
+      inset 0 1px 0 rgba(255,255,255,.2);
+  }
+
+  button.action:active {
+    transform: scale(.97);
+  }
+
+  /* Animations */
+  @keyframes modalIn {
+    0% {
+      opacity: 0;
+      transform: translateY(35px) scale(.94);
+      filter: blur(7px);
+    }
+    65% {
+      opacity: 1;
+      transform: translateY(-3px) scale(1.006);
+      filter: blur(0);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes modalFloat {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+
+  @keyframes iconIn {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(.76);
+    }
+    65% {
+      opacity: 1;
+      transform: translateY(-4px) scale(1.025);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes bellFloat {
+    0%, 100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    35% {
+      transform: translateY(-2px) rotate(-1deg);
+    }
+    65% {
+      transform: translateY(1px) rotate(1deg);
+    }
+  }
+
+  @keyframes textIn {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes actionsIn {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes ambient {
+    0%, 100% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: .7;
+    }
+    50% {
+      transform: translate(-50%, -51%) scale(1.08);
+      opacity: .9;
+    }
+  }
+
+  /* Closed state */
+  .modal-wrap.closed {
+    animation: modalOut 450ms cubic-bezier(.4,0,1,1) forwards;
+  }
+
+  @keyframes modalOut {
+    to {
+      opacity: 0;
+      transform: translateY(22px) scale(.96);
+      filter: blur(5px);
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 620px) {
+    .modal-wrap {
+      padding: 7px;
+      border-radius: 32px;
+    }
+
+    .modal {
+      min-height: 470px;
+      border-radius: 27px;
+    }
+
+    .content {
+      padding-top: 34px;
+    }
+
+    .bell-stage {
+      width: 125px;
+      height: 125px;
+      margin-bottom: 25px;
+      transform: scale(.9);
+    }
+
+    h1 {
+      font-size: 30px;
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      max-width: 390px;
+    }
+
+    .actions {
+      padding: 25px 18px;
+      height: 105px;
+    }
+
+    button.action {
+      height: 54px;
+      font-size: 17px;
+      border-radius: 15px;
+    }
+
+    .close {
+      top: 24px;
+      right: 23px;
+    }
+  }
+
+  @media (max-width: 430px) {
+    .modal {
+      min-height: 450px;
+    }
+
+    .bell-stage {
+      width: 112px;
+      height: 112px;
+      margin-bottom: 21px;
+    }
+
+    h1 {
+      font-size: 27px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .actions {
+      gap: 8px;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    button.action {
+      font-size: 15px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
+
+.promo-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 99999;
+
+  height: 46px;
+
+  background: #1253C8;
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow:
+    0 4px 20px rgba(18,83,200,.25);
+}
+
+.promo-content {
+  width: min(1100px, calc(100% - 28px));
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+
+  font-size: 10px;
+  letter-spacing: .6px;
+}
+
+.promo-brand,
+.promo-powered,
+.promo-cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  white-space: nowrap;
+}
+
+.promo-brand > span:not(.spark),
+.promo-powered > span:not(:first-child),
+.promo-cta > span {
+  opacity: .72;
+}
+
+.promo-brand strong,
+.promo-powered strong {
+  font-weight: 800;
+  letter-spacing: .8px;
+}
+
+.spark {
+  font-size: 13px;
+  color: #bcd5ff;
+}
+
+.promo-powered > span:first-child {
+  font-size: 12px;
+}
+
+.promo-divider {
+  width: 1px;
+  height: 17px;
+  background: rgba(255,255,255,.25);
+}
+
+.promo-cta a {
+  padding: 6px 11px;
+
+  color: #1253C8;
+  background: white;
+
+  border-radius: 7px;
+
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-decoration: none;
+
+  transition:
+    transform .18s ease,
+    box-shadow .18s ease;
+}
+
+.promo-cta a:hover {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 4px 12px rgba(0,0,0,.18);
+}
+
+/* Keep modal below promo bar */
+.modal-wrap {
+  margin-top: 46px;
+}
+
+@media (max-width: 700px) {
+
+  .promo-bar {
+    height: 42px;
+  }
+
+  .promo-content {
+    gap: 10px;
+    font-size: 8px;
+  }
+
+  .promo-divider {
+    display: none;
+  }
+
+  .promo-brand span:first-of-type {
+    display: none;
+  }
+
+  .promo-cta span {
+    display: none;
+  }
+
+  .promo-cta a {
+    padding: 6px 9px;
+  }
+
+  .modal-wrap {
+    margin-top: 42px;
+  }
+}
+
+.btn-wrapper {
+  --rad: 11px;
+
+  position: relative;
+
+  width: 155px;
+  height: 30px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+  overflow-clip-margin: 3px;
+
+  border: 1px solid rgba(255,255,255,.9);
+  border-radius: var(--rad);
+
+  background: #fff;
+
+  text-decoration: none;
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "Inter",
+    sans-serif;
+
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .65px;
+
+  box-shadow:
+    0 3px 10px rgba(0,0,0,.16),
+    inset 0 1px 0 rgba(255,255,255,1);
+
+  filter: saturate(.9);
+
+  transition:
+    transform .25s cubic-bezier(.16,1,.3,1),
+    box-shadow .25s ease;
+}
+	
+</style>
+</head>
+
+<body>
+
+<div class="promo-bar">
+  <div class="promo-content">
+
+    <div class="promo-brand">
+      <span class="spark">✦</span>
+      <span>CRAFTED BY</span>
+      <strong>RAHUL PARGHI</strong>
+    </div>
+
+    <div class="promo-divider"></div>
+
+    <div class="promo-powered">
+      <span>⚡</span>
+      <span>POWERED BY</span>
+      <strong>NETBYZZ</strong>
+    </div>
+
+    <div class="promo-divider"></div>
+
+    <div class="promo-cta">
+      <span>NEED A WEBSITE?</span>
+
+      <a href="https://netbyzz.com"
+         target="_blank"
+         rel="noopener noreferrer">
+        YOUR IDEA, OUR CODE ↗
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<div class="background">
+  <div class="grid"></div>
+</div>
+
+<div class="modal-wrap" id="modalWrap">
+
+  <div class="modal">
+
+    <button class="close" id="closeBtn" aria-label="Close"></button>
+
+    <div class="content">
+
+      <div class="bell-stage">
+        <div class="bell">
+
+          <div class="loop"></div>
+
+          <div class="bell-body"></div>
+
+          <div class="bell-rim"></div>
+
+          <div class="clapper"></div>
+
+        </div>
+      </div>
+
+      <h1>Allow notifications</h1>
+
+      <div class="subtitle">
+        Stay in the loop. Get instant alerts for new tasks,
+        mentions, blockers and approvals - even when this tab is
+        in the background.
+      </div>
+
+    </div>
+
+    <div class="actions">
+
+      <button class="action later" id="laterBtn">
+        Maybe Later
+      </button>
+
+      <button class="action allow" id="allowBtn">
+        Allow
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  const modalWrap = document.getElementById("modalWrap");
+  const closeBtn = document.getElementById("closeBtn");
+  const laterBtn = document.getElementById("laterBtn");
+  const allowBtn = document.getElementById("allowBtn");
+
+  function closeModal() {
+    modalWrap.classList.add("closed");
+  }
+
+  closeBtn.addEventListener("click", closeModal);
+  laterBtn.addEventListener("click", closeModal);
+
+  allowBtn.addEventListener("click", async () => {
+    allowBtn.innerHTML = "Allowed ✓";
+
+    allowBtn.style.background =
+      "linear-gradient(180deg,#34a853,#238b45)";
+
+    setTimeout(() => {
+      closeModal();
+    }, 650);
+  });
+</script>
+
+</body>
+</html>
